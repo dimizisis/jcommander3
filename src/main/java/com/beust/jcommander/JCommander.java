@@ -42,7 +42,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * or an instance of Iterable. In the case of an array or Iterable, JCommander will collect
  * the \@Parameter annotations from all the objects passed in parameter.
  *
- * @author Cedric Beust <cedric@beust.com>
+ * @author Cedric Beust &lt;cedric@beust.com&gt;
  */
 public class JCommander {
     public static final String DEBUG_PROPERTY = "jcommander.debug";
@@ -1028,7 +1028,7 @@ public class JCommander {
      * Sets the usage formatter.
      *
      * @param usageFormatter the usage formatter
-     * @throws IllegalArgumentException if the argument is <tt>null</tt>
+     * @throws IllegalArgumentException if the argument is null
      **/
     public void setUsageFormatter(IUsageFormatter usageFormatter) {
         if (usageFormatter == null)
