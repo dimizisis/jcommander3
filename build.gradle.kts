@@ -1,10 +1,23 @@
 
 
-val jcommanderVersion = "1.78"
+object This {
+    val version = "1.79"
+    val artifactId = "jcommander"
+    val groupId = "com.beust"
+    val description = "Command line parsing library for Java"
+    val url = "https://jcommander.org"
+    val scm = "github.com/cbeust/jcommander"
+
+    // Should not need to change anything below
+    val issueManagementUrl = "https://$scm/issues"
+}
+
+
+val kotlinVersion = "1.3.50"
 
 allprojects {
-    group = "com.beust"
-    version = jcommanderVersion
+    group = This.groupId
+    version = This.version
     apply<MavenPublishPlugin>()
     tasks.withType<Javadoc> {
         options {
@@ -16,18 +29,14 @@ allprojects {
     }
 }
 
-buildscript {
-    val kotlinVer by extra { "1.3.41" }
+val kotlinVer by extra { kotlinVersion }
 
+buildscript {
     repositories {
         jcenter()
         mavenCentral()
         maven { setUrl("https://plugins.gradle.org/m2") }
     }
-
-//    dependencies {
-//        classpath(kotlin("gradle-plugin", kotlinVer))
-//    }
 }
 
 java {
@@ -49,11 +58,9 @@ plugins {
     id("com.jfrog.bintray") version "1.8.3" // Don't use 1.8.4, crash when publishing
 }
 
-val kotlinVer by extra { "1.3.41" }
-
 dependencies {
     listOf("org.testng:testng:7.0.0")
-        .forEach { testCompile(it) }
+        .forEach { testImplementation(it) }
 }
 
 //
@@ -66,16 +73,16 @@ bintray {
     user = project.findProperty("bintrayUser")?.toString()
     key = project.findProperty("bintrayApiKey")?.toString()
     dryRun = false
-    publish = true
+    publish = false
 
     setPublications("custom")
 
     with(pkg) {
         repo = "maven"
-        name = "jcommander"
+        name = This.artifactId
         with(version) {
-            name = jcommanderVersion
-            desc = "Command line parsing library for Java"
+            name = This.version
+            desc = This.description
             with(gpg) {
                 sign = true
             }
@@ -98,8 +105,8 @@ val javadocJar by tasks.creating(Jar::class) {
 with(publishing) {
     publications {
         create<MavenPublication>("custom") {
-            groupId = "com.beust"
-            artifactId = "jcommander"
+            groupId = This.groupId
+            artifactId = This.artifactId
             version = project.version.toString()
             afterEvaluate {
                 from(components["java"])
@@ -107,9 +114,9 @@ with(publishing) {
             artifact(sourcesJar)
             artifact(javadocJar)
             pom {
-                name.set("jcommander")
-                description.set("Command line parser library for Java")
-                url.set("https://jcommander.org")
+                name.set(This.artifactId)
+                description.set(This.description)
+                url.set(This.url)
                 licenses {
                     license {
                         name.set("Apache License, Version 2.0")
@@ -118,7 +125,7 @@ with(publishing) {
                 }
                 issueManagement {
                     system.set("Github")
-                    url.set("https://github.com/cbeust/jcommander/issues")
+                    url.set(This.issueManagementUrl)
                 }
                 developers {
                     developer {
@@ -128,9 +135,8 @@ with(publishing) {
                     }
                 }
                 scm {
-                    connection.set("scm:git:git://example.com/my-library.git")
-                    developerConnection.set("scm:git:ssh://example.com/my-library.git")
-                    url.set("http://example.com/my-library/")
+                    connection.set("scm:git:git://${This.scm}.git")
+                    url.set("https://${This.scm}")
                 }
             }
         }
@@ -140,7 +146,7 @@ with(publishing) {
         mavenLocal()
         maven {
             name = "sonatype"
-            url = if (false) // isSnapshot
+            url = if (This.version.contains("SNAPSHOT"))
                 uri("https://oss.sonatype.org/content/repositories/snapshots/") else
                 uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
             credentials {

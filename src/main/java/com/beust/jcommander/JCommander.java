@@ -596,72 +596,86 @@ public class JCommander {
     }
 
     private void addDescription(Object object) {
-        Class<?> cls = object.getClass();
-
         List<Parameterized> parameterizeds = Parameterized.parseArg(object);
         for (Parameterized parameterized : parameterizeds) {
             WrappedParameter wp = parameterized.getWrappedParameter();
-            if (wp != null && wp.getParameter() != null) {
-                Parameter annotation = wp.getParameter();
-                //
-                // @Parameter
-                //
-                Parameter p = annotation;
-                if (p.names().length == 0) {
-                    p("Found main parameter:" + parameterized);
-                    if (mainParameter != null) {
-                        throw new ParameterException("Only one @Parameter with no names attribute is"
-                                + " allowed, found:" + mainParameter + " and " + parameterized);
-                    }
-                    mainParameter = new MainParameter();
-                    mainParameter.parameterized = parameterized;
-                    mainParameter.object = object;
-                    mainParameter.annotation = p;
-                    mainParameter.description =
-                            new ParameterDescription(object, p, parameterized, options.bundle, this);
-                } else {
-                    ParameterDescription pd =
-                            new ParameterDescription(object, p, parameterized, options.bundle, this);
-                    for (String name : p.names()) {
-                        if (descriptions.containsKey(new StringKey(name))) {
-                            throw new ParameterException("Found the option " + name + " multiple times");
-                        }
-                        p("Adding description for " + name);
-                        fields.put(parameterized, pd);
-                        descriptions.put(new StringKey(name), pd);
-
-                        if (p.required()) requiredFields.put(parameterized, pd);
-                    }
-                }
-            } else if (parameterized.getDelegateAnnotation() != null) {
-                //
-                // @ParametersDelegate
-                //
-                Object delegateObject = parameterized.get(object);
-                if (delegateObject == null) {
-                    throw new ParameterException("Delegate field '" + parameterized.getName()
-                            + "' cannot be null.");
-                }
-                addDescription(delegateObject);
-            } else if (wp != null && wp.getDynamicParameter() != null) {
-                //
-                // @DynamicParameter
-                //
-                DynamicParameter dp = wp.getDynamicParameter();
-                for (String name : dp.names()) {
-                    if (descriptions.containsKey(name)) {
-                        throw new ParameterException("Found the option " + name + " multiple times");
-                    }
-                    p("Adding description for " + name);
-                    ParameterDescription pd =
-                            new ParameterDescription(object, dp, parameterized, options.bundle, this);
-                    fields.put(parameterized, pd);
-                    descriptions.put(new StringKey(name), pd);
-
-                    if (dp.required()) requiredFields.put(parameterized, pd);
-                }
-            }
+            if (wp != null && wp.getParameter() != null)
+                addStaticParameterDescription(object, wp, parameterized);
+            else if (parameterized.getDelegateAnnotation() != null)
+                addDescription(getDelegateObject(object, parameterized));
+            else if (wp != null && wp.getDynamicParameter() != null)
+                addDynamicParameterDescription(object, wp, parameterized);
         }
+    }
+
+    private Object getDelegateObject(Object object, Parameterized parameterized){
+        //
+        // @ParametersDelegate
+        //
+        Object delegateObject = parameterized.get(object);
+        if (delegateObject == null)
+            throw new ParameterException("Delegate field '" + parameterized.getName()
+                    + "' cannot be null.");
+        return delegateObject;
+    }
+
+    private void addStaticParameterDescription(Object object, WrappedParameter wp, Parameterized parameterized){
+        //
+        // @Parameter
+        //
+        Parameter p = wp.getParameter();
+        if (p.names().length == 0)
+            initializeMainParameter(object, parameterized, p); /* Refactoring0 */
+        else {
+            ParameterDescription pd =
+                    new ParameterDescription(object, p, parameterized, options.bundle, this);
+            for (String name : p.names())
+                addDescriptionForField(name, parameterized, pd, p);
+        }
+    }
+
+    private void addDynamicParameterDescription(Object object, WrappedParameter wp, Parameterized parameterized){
+        //
+        // @DynamicParameter
+        //
+        DynamicParameter dp = wp.getDynamicParameter();
+        for (String name : dp.names())
+            addDescriptionForField(object, name, parameterized, dp);
+    }
+
+    private void addDescriptionForField(String name, Parameterized parameterized, ParameterDescription pd, Parameter p){
+        if (descriptions.containsKey(new StringKey(name)))
+            throw new ParameterException("Found the option " + name + " multiple times");
+        p("Adding description for " + name);
+        fields.put(parameterized, pd);
+        descriptions.put(new StringKey(name), pd);
+
+        if (p.required()) requiredFields.put(parameterized, pd);
+    }
+
+    private void addDescriptionForField(Object object, String name, Parameterized parameterized, DynamicParameter dp){
+        if (descriptions.containsKey(new StringKey(name)))
+            throw new ParameterException("Found the option " + name + " multiple times");
+        p("Adding description for " + name);
+        ParameterDescription pd =
+                new ParameterDescription(object, dp, parameterized, options.bundle, this);
+        fields.put(parameterized, pd);
+        descriptions.put(new StringKey(name), pd);
+
+        if (dp.required()) requiredFields.put(parameterized, pd);
+    }
+
+    private void initializeMainParameter(Object object, Parameterized parameterized, Parameter p){
+        p("Found main parameter:" + parameterized);
+        if (mainParameter != null)
+            throw new ParameterException("Only one @Parameter with no names attribute is"
+                    + " allowed, found:" + mainParameter + " and " + parameterized);
+        mainParameter = new MainParameter();
+        mainParameter.parameterized = parameterized;
+        mainParameter.object = object;
+        mainParameter.annotation = p;
+        mainParameter.description =
+                new ParameterDescription(object, p, parameterized, options.bundle, this);
     }
 
     private void initializeDefaultValue(ParameterDescription pd) {
@@ -759,7 +773,7 @@ public class JCommander {
                     // Fix
                     // Main parameter doesn't support Converter
                     // https://github.com/cbeust/jcommander/issues/380
-                    if (mainParameter.annotation.converter() != null && mainParameter.annotation.converter() != NoConverter.class){
+                    if (mainParameter.annotation.converter() != NoConverter.class){
                         convertedValue = convertValue(mainParameter.parameterized, mainParameter.parameterized.getType(), null, value);
                     }
 

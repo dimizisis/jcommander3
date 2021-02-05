@@ -52,4 +52,5 @@ public interface IUsageFormatter {
      * @return the description of the argument command
      */
     String getCommandDescription(String commandName);
+
 }

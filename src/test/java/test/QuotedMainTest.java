@@ -15,7 +15,6 @@ public class QuotedMainTest {
   
   String quoted = "\" \"";
 
-  @Test
   public void testMain() {
     JCommander jc = new JCommander(this);
     jc.parse(quoted);
