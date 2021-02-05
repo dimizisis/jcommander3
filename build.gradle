@@ -12,7 +12,7 @@ plugins {
     id "com.jfrog.bintray" version "1.2"
 }
 
-version = '1.58'
+version = '1.72'
 
 apply plugin: 'java'
 apply plugin: 'eclipse'
@@ -25,6 +25,13 @@ repositories {
 
 dependencies {
     testCompile 'org.testng:testng:6.9.13'
+}
+
+jar {
+  manifest {
+    attributes(
+      "Automatic-Module-Name": "com.beust.jcommander")
+  }
 }
 
 task sourceJar(type: Jar) {
@@ -41,4 +48,8 @@ artifacts {
 test {
     // enable TestNG support (default is JUnit)
     useTestNG()
+}
+
+tasks.withType(JavaCompile) {
+  options.encoding = "UTF-8"
 }

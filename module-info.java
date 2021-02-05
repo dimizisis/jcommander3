@@ -16,29 +16,12 @@
  * limitations under the License.
  */
 
-package com.beust.jcommander.converters;
-
-import com.beust.jcommander.IStringConverter;
-
 /**
- * Base class for converters that store the name of the option.
- * 
- * @author cbeust
+ * The JCommander module declaration.
  */
-public abstract class BaseConverter<T> implements IStringConverter<T> {
-
-  private String optionName;
-
-  public BaseConverter(String optionName) {
-    this.optionName = optionName;
-  }
-
-  public String getOptionName() {
-    return optionName;
-  }
-
-  protected String getErrorString(String value, String to) {
-    return "\"" + getOptionName() + "\": couldn't convert \"" + value + "\" to " + to;
-  }
-
+module com.beust.jcommander {
+    exports com.beust.jcommander; 
+    exports com.beust.jcommander.converters; 
+    exports com.beust.jcommander.defaultprovider; 
+    exports com.beust.jcommander.validators; 
 }

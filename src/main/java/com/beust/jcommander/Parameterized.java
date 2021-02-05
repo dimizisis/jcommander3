@@ -4,12 +4,7 @@ import com.beust.jcommander.internal.Lists;
 import com.beust.jcommander.internal.Sets;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -34,7 +29,11 @@ public class Parameterized {
     this.method = method;
     this.field = field;
     if (this.field != null) {
-      setFieldAccessible(this.field);
+      if(pd == null) {
+        setFieldAccessible(this.field);
+      } else {
+        setFieldAccessibleWithoutFinalCheck(this.field);
+      }
     }
     parametersDelegate = pd;
   }
@@ -73,7 +72,7 @@ public class Parameterized {
    * Given an object return the set of classes that it extends
    * or implements.
    *
-   * @param arg object to describe
+   * @param inputClass object to describe
    * @return set of classes that are implemented or extended by that object
    */
   private static Set<Class<?>> describeClassTree(Class<?> inputClass) {
@@ -165,8 +164,7 @@ public class Parameterized {
     try {
       if (method != null) {
         if (getter == null) {
-            getter = method.getDeclaringClass()
-                .getMethod("g" + method.getName().substring(1));
+          setGetter(object);
         }
         return getter.invoke(object);
       } else {
@@ -190,6 +188,22 @@ public class Parameterized {
       }
       return result;
     }
+  }
+
+  private void setGetter(Object object) throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
+    if(Boolean.class.getSimpleName().toLowerCase().equals(getType().getName())){
+      // try is<fieldname> notation
+      try {
+        getter = object.getClass()
+                .getMethod("is" + method.getName().substring(3));
+        // we have found a is<fieldname> getter we can return
+        return;
+      } catch (NoSuchMethodException n){
+        // if not found ignore exception and try with default get<fieldname> below
+      }
+    }
+    getter = object.getClass()
+            .getMethod("g" + method.getName().substring(1));
   }
 
   @Override
@@ -237,6 +251,10 @@ public class Parameterized {
         "Cannot use final field " + f.getDeclaringClass().getName() + "#" + f.getName() + " as a parameter;"
         + " compile-time constant inlining may hide new values written to it.");
     }
+    f.setAccessible(true);
+  }
+
+  private static void setFieldAccessibleWithoutFinalCheck(Field f) {
     f.setAccessible(true);
   }
 
@@ -291,6 +309,14 @@ public class Parameterized {
         Type cls = p.getActualTypeArguments()[0];
         if (cls instanceof Class) {
           return cls;
+        } else if ( cls instanceof WildcardType) {
+          WildcardType wildcardType = (WildcardType)cls;
+          if (wildcardType.getLowerBounds().length > 0) {
+            return wildcardType.getLowerBounds()[0];
+          }
+          if (wildcardType.getUpperBounds().length > 0) {
+            return wildcardType.getUpperBounds()[0];
+          }
         }
       }
     }

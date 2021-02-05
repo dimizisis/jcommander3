@@ -16,29 +16,29 @@
  * limitations under the License.
  */
 
-package com.beust.jcommander.converters;
+package com.beust.jcommander.args;
 
-import com.beust.jcommander.IStringConverter;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.converters.FileConverter;
+
+import java.io.File;
 
 /**
- * Base class for converters that store the name of the option.
+ * A class with main parameter that needs a Converter
  * 
- * @author cbeust
+ * @author juewe
  */
-public abstract class BaseConverter<T> implements IStringConverter<T> {
+public class ArgsMainParameter3  {
 
-  private String optionName;
+  @Parameter(converter = FileConverter.class)
+  public File path;
 
-  public BaseConverter(String optionName) {
-    this.optionName = optionName;
+  public File getPath() {
+    return path;
   }
 
-  public String getOptionName() {
-    return optionName;
-  }
-
-  protected String getErrorString(String value, String to) {
-    return "\"" + getOptionName() + "\": couldn't convert \"" + value + "\" to " + to;
+  public void setPath(File path) {
+    this.path = path;
   }
 
 }

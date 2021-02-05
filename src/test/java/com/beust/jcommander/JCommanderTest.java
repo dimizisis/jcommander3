@@ -23,6 +23,7 @@ import com.beust.jcommander.args.ArgsEnum.ChoiceType;
 import com.beust.jcommander.command.CommandAdd;
 import com.beust.jcommander.command.CommandCommit;
 import com.beust.jcommander.command.CommandMain;
+import com.beust.jcommander.converters.EnumConverter;
 import com.beust.jcommander.converters.FileConverter;
 import com.beust.jcommander.internal.Lists;
 import com.beust.jcommander.internal.Maps;
@@ -41,57 +42,11 @@ import java.util.ResourceBundle;
 @Test
 public class JCommanderTest {
 
-    @Test
-    public void testLongMainParameterDescription() {
-        //setup
-        JCommander jc = new JCommander(new ArgsLongMainParameterDescription());
-        StringBuilder sb = new StringBuilder();
-
-        //action
-        jc.usage(sb);
-
-        //verify
-        for (String line : sb.toString().split("\n")) {
-            Assert.assertTrue(line.length() <= jc.getColumnSize(), "line length < column size");
-        }
-    }
-
-    @Test
-    public void testLongCommandDescription() throws Exception {
-        //setup
-        JCommander jc = new JCommander();
-        jc.addCommand(new ArgsLongCommandDescription());
-        StringBuilder sb = new StringBuilder();
-
-        //action
-        jc.usage(sb);
-
-        //verify
-        for (String line : sb.toString().split("\n")) {
-            Assert.assertTrue(line.length() <= jc.getColumnSize(), "line length < column size");
-        }
-    }
-
-    @Test
-    public void testDescriptionWrappingLongWord() {
-        //setup
-        StringBuilder sb = new StringBuilder();
-        final JCommander jc = new JCommander(new ArgsLongDescription());
-
-        //action
-        jc.usage(sb);
-
-        //verify
-        for (String line : sb.toString().split("\n")) {
-            Assert.assertTrue(line.length() <= jc.getColumnSize(), "line length < column size");
-        }
-    }
-
     public void simpleArgs() throws ParseException {
         Args1 args = new Args1();
         String[] argv = {"-debug", "-log", "2", "-float", "1.2", "-double", "1.3", "-bigdecimal", "1.4",
                 "-date", "2011-10-26", "-groups", "unit", "a", "b", "c"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
 
         Assert.assertTrue(args.debug);
         Assert.assertEquals(args.verbose.intValue(), 2);
@@ -123,7 +78,7 @@ public class JCommanderTest {
     public void testAlternateNamesForListParameters(String[] argv) {
         AlternateNamesForListArgs args = new AlternateNamesForListArgs();
 
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
 
         Assert.assertEquals(args.serverNames.size(), 3);
         Assert.assertEquals(args.serverNames.get(0), argv[1]);
@@ -139,7 +94,8 @@ public class JCommanderTest {
     public void repeatedArgs() {
         Args1 args = new Args1();
         String[] argv = {"-log", "2"};
-        JCommander jc = new JCommander(args, argv);
+        JCommander jc = JCommander.newBuilder().addObject(args).build();
+        jc.parse(argv);
         Assert.assertEquals(jc.getParameters().size(), 8);
     }
 
@@ -150,17 +106,7 @@ public class JCommanderTest {
     public void requiredFields1Fail() {
         Args1 args = new Args1();
         String[] argv = {"-debug"};
-        new JCommander(args, argv);
-    }
-
-    /**
-     * Getting the description of a nonexistent command should throw an exception.
-     */
-    @Test(expectedExceptions = ParameterException.class)
-    public void nonexistentCommandShouldThrow() {
-        String[] argv = {};
-        JCommander jc = new JCommander(new Object(), argv);
-        jc.getCommandDescription("foo");
+        JCommander.newBuilder().addObject(args).build().parse(argv);
     }
 
     /**
@@ -169,7 +115,7 @@ public class JCommanderTest {
     private void multipleNames(String option) {
         Args1 args = new Args1();
         String[] argv = {option, "2"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
         Assert.assertEquals(args.verbose.intValue(), 2);
     }
 
@@ -205,10 +151,11 @@ public class JCommanderTest {
         i18n1("MessageBundle", new Locale("fr", "FR"), "Hôte");
     }
 
-    private void i18n2(Object i18n) {
+    private void i18n2(Object args) {
         String[] argv = {"-host", "localhost"};
         Locale.setDefault(new Locale("fr", "FR"));
-        JCommander jc = new JCommander(i18n, argv);
+        JCommander jc = JCommander.newBuilder().addObject(args).build();
+        jc.parse(argv);
         ParameterDescription pd = jc.getParameters().get(0);
         Assert.assertEquals(pd.getDescription(), "Hôte");
     }
@@ -221,48 +168,11 @@ public class JCommanderTest {
         i18n2(new ArgsI18N2New());
     }
 
-    public void i18MissingKeyForCommand() {
-        ResourceBundle bundle = ResourceBundle.getBundle("MessageBundle", new Locale("en", "US"));
-        JCommander jc = new JCommander(new ArgsHelp(), bundle);
-        jc.addCommand(new ArgsLongCommandDescription());
-        StringBuilder sb = new StringBuilder();
-        jc.usage(sb);
-        String usage = sb.toString();
-        Assert.assertTrue(usage.contains("text"));
-    }
-
-    public void noParseConstructor() {
-        JCommander jCommander = new JCommander(new ArgsMainParameter1());
-        jCommander.usage(new StringBuilder());
-        // Before fix, this parse would throw an exception, because it calls createDescription, which
-        // was already called by usage(), and can only be called once.
-        jCommander.parse();
-    }
-
-    /**
-     * Test a use case where there are required parameters, but you still want
-     * to interrogate the options which are specified.
-     */
-    public void usageWithRequiredArgsAndResourceBundle() {
-        ArgsHelp argsHelp = new ArgsHelp();
-        JCommander jc = new JCommander(new Object[]{argsHelp, new ArgsRequired()},
-                java.util.ResourceBundle.getBundle("MessageBundle"));
-        // Should be able to display usage without triggering validation
-        jc.usage(new StringBuilder());
-        try {
-            jc.parse("-h");
-            Assert.fail("Should have thrown a required parameter exception");
-        } catch (ParameterException e) {
-            Assert.assertTrue(e.getMessage().contains("are required"));
-        }
-        Assert.assertTrue(argsHelp.help);
-    }
-
     public void multiObjects() {
         ArgsMaster m = new ArgsMaster();
         ArgsSlave s = new ArgsSlave();
         String[] argv = {"-master", "master", "-slave", "slave"};
-        new JCommander(new Object[]{m, s}, argv);
+        JCommander.newBuilder().addObject(m).addObject(s).build().parse(argv);
 
         Assert.assertEquals(m.master, "master");
         Assert.assertEquals(s.slave, "slave");
@@ -273,13 +183,15 @@ public class JCommanderTest {
         ArgsMaster m = new ArgsMaster();
         ArgsSlave s = new ArgsSlaveBogus();
         String[] argv = {"-master", "master", "-slave", "slave"};
-        new JCommander(new Object[]{m, s}, argv);
+
+        JCommander.newBuilder().addObject(m).addObject(s).build().parse(argv);
     }
 
     public void arityString() {
         ArgsArityString args = new ArgsArityString();
         String[] argv = {"-pairs", "pair0", "pair1", "rest"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+
 
         Assert.assertEquals(args.pairs.size(), 2);
         Assert.assertEquals(args.pairs.get(0), "pair0");
@@ -292,19 +204,19 @@ public class JCommanderTest {
     public void arity2Fail() {
         ArgsArityString args = new ArgsArityString();
         String[] argv = {"-pairs", "pair0"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
     }
 
     @Test(expectedExceptions = ParameterException.class)
     public void multipleUnparsedFail() {
         ArgsMultipleUnparsed args = new ArgsMultipleUnparsed();
         String[] argv = {};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
     }
 
     public void privateArgs() {
         ArgsPrivate args = new ArgsPrivate();
-        new JCommander(args, "-verbose", "3");
+        JCommander.newBuilder().addObject(args).build().parse("-verbose", "3");
         Assert.assertEquals(args.getVerbose().intValue(), 3);
     }
 
@@ -323,11 +235,16 @@ public class JCommanderTest {
     public void converterArgs() {
         ArgsConverter args = new ArgsConverter();
         String fileName = "a";
-        new JCommander(args, "-file", "/tmp/" + fileName,
+        JCommander.newBuilder().addObject(args).build().parse(
+                "-file", "/tmp/" + fileName,
+                "-path", "/tmp/" + fileName,
                 "-listStrings", "Tuesday,Thursday",
                 "-listInts", "-1,8",
-                "-listBigDecimals", "-11.52,100.12");
+                "-listBigDecimals", "-11.52,100.12",
+                "-listBigDecimalsWildcardUpper", "-11.52,100.12",
+                "-listBigDecimalsWildcardLower", "-11.52,100.12");
         Assert.assertEquals(args.file.getName(), fileName);
+        Assert.assertEquals(args.path.getFileName().toString(), fileName);
         Assert.assertEquals(args.listStrings.size(), 2);
         Assert.assertEquals(args.listStrings.get(0), "Tuesday");
         Assert.assertEquals(args.listStrings.get(1), "Thursday");
@@ -337,6 +254,19 @@ public class JCommanderTest {
         Assert.assertEquals(args.listBigDecimals.size(), 2);
         Assert.assertEquals(args.listBigDecimals.get(0), new BigDecimal("-11.52"));
         Assert.assertEquals(args.listBigDecimals.get(1), new BigDecimal("100.12"));
+        Assert.assertEquals(args.listBigDecimalsWildcardUpper.size(), 2);
+        Assert.assertEquals(args.listBigDecimalsWildcardUpper.get(0), new BigDecimal("-11.52"));
+        Assert.assertEquals(args.listBigDecimalsWildcardUpper.get(1), new BigDecimal("100.12"));
+        Assert.assertEquals(args.listBigDecimalsWildcardLower.size(), 2);
+        Assert.assertEquals(args.listBigDecimalsWildcardLower.get(0), new BigDecimal("-11.52"));
+        Assert.assertEquals(args.listBigDecimalsWildcardLower.get(1), new BigDecimal("100.12"));
+    }
+
+    @Test(expectedExceptions = ParameterException.class)
+    public void pathConverterErr() {
+        ArgsConverter args = new ArgsConverter();
+        // even the most permissive filesystems do not allow file names containing null character
+        JCommander.newBuilder().addObject(args).build().parse("-path", "an\u0000invalid_path ");
     }
 
     public void hiddenConverter() {
@@ -345,11 +275,11 @@ public class JCommanderTest {
             public String path;
         }
 
-        new JCommander(new Args(), "--path", "/tmp/a");
+        JCommander.newBuilder().addObject(new Args()).build().parse("--path", "/tmp/a");
     }
 
     public void hiddenArgs() {
-        new JCommander(new HiddenArgs(), "--input", "/tmp/a", "--output", "/tmp/b");
+        JCommander.newBuilder().addObject(new HiddenArgs()).build().parse("--input", "/tmp/a", "--output", "/tmp/b");
     }
 
     public void hiddenSplitter() {
@@ -362,19 +292,47 @@ public class JCommanderTest {
         }
 
         Args args = new Args();
-        new JCommander(args, "--extensions", ".txt;.md");
+        JCommander.newBuilder().addObject(args).build().parse("--extensions", ".txt;.md");
         Assert.assertEquals(Arrays.asList(".txt", ".md"), args.extensions);
     }
 
-    private void argsBoolean1(String[] params, Boolean expected) {
+    @Test
+    public void booleanNoDefault() {
+        class Args {
+            @Parameter(names = {"--f"}, description = "Just a simple flag")
+            private Boolean f;
+        }
+        Args args = new Args();
+        JCommander.newBuilder()
+                .addObject(args)
+                .build().parse("--f");
+        Assert.assertEquals(args.f, Boolean.TRUE);
+    }
+
+
+    @Test
+    public void invertedBoolean() {
+        class Args {
+            @Parameter(names = {"--f"})
+            private boolean f = true;
+        }
+        Args args = new Args();
+        JCommander.newBuilder()
+                .addObject(args)
+                .args(new String[]{"--f"})
+                .build();
+        Assert.assertEquals(args.f, false);
+    }
+
+    private void argsBoolean1(String[] argv, Boolean expected) {
         ArgsBooleanArity args = new ArgsBooleanArity();
-        new JCommander(args, params);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
         Assert.assertEquals(args.debug, expected);
     }
 
-    private void argsBoolean0(String[] params, Boolean expected) {
+    private void argsBoolean0(String[] argv, Boolean expected) {
         ArgsBooleanArity0 args = new ArgsBooleanArity0();
-        new JCommander(args, params);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
         Assert.assertEquals(args.debug, expected);
     }
 
@@ -392,98 +350,86 @@ public class JCommanderTest {
     public void badParameterShouldThrowParameter1Exception() {
         Args1 args = new Args1();
         String[] argv = {"-log", "foo"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
     }
 
     @Test(expectedExceptions = ParameterException.class)
     public void badParameterShouldThrowParameter2Exception() {
         Args1 args = new Args1();
         String[] argv = {"-long", "foo"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
     }
 
     public void listParameters() {
-        Args2 a = new Args2();
+        Args2 args = new Args2();
         String[] argv = {"-log", "2", "-groups", "unit", "a", "b", "c", "-host", "host2"};
-        new JCommander(a, argv);
-        Assert.assertEquals(a.verbose.intValue(), 2);
-        Assert.assertEquals(a.groups, "unit");
-        Assert.assertEquals(a.hosts, Arrays.asList("host2"));
-        Assert.assertEquals(a.parameters, Arrays.asList("a", "b", "c"));
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+        Assert.assertEquals(args.verbose.intValue(), 2);
+        Assert.assertEquals(args.groups, "unit");
+        Assert.assertEquals(args.hosts, Arrays.asList("host2"));
+        Assert.assertEquals(args.parameters, Arrays.asList("a", "b", "c"));
     }
 
     public void separatorEqual() {
-        SeparatorEqual s = new SeparatorEqual();
+        SeparatorEqual args = new SeparatorEqual();
         String[] argv = {"-log=3", "--longoption=10"};
-        new JCommander(s, argv);
-        Assert.assertEquals(s.log.intValue(), 3);
-        Assert.assertEquals(s.longOption.intValue(), 10);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+        Assert.assertEquals(args.log.intValue(), 3);
+        Assert.assertEquals(args.longOption.intValue(), 10);
     }
 
     public void separatorColon() {
-        SeparatorColon s = new SeparatorColon();
+        SeparatorColon args = new SeparatorColon();
         String[] argv = {"-verbose:true"};
-        new JCommander(s, argv);
-        Assert.assertTrue(s.verbose);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+        Assert.assertTrue(args.verbose);
     }
 
     public void separatorBoth() {
         SeparatorColon s = new SeparatorColon();
         SeparatorEqual s2 = new SeparatorEqual();
         String[] argv = {"-verbose:true", "-log=3"};
-        new JCommander(new Object[]{s, s2}, argv);
+        JCommander.newBuilder().addObject(s).addObject(s2).build().parse(argv);
         Assert.assertTrue(s.verbose);
         Assert.assertEquals(s2.log.intValue(), 3);
     }
 
     public void separatorMixed1() {
-        SeparatorMixed s = new SeparatorMixed();
+        SeparatorMixed args = new SeparatorMixed();
         String[] argv = {"-long:1", "-level=42"};
-        new JCommander(s, argv);
-        Assert.assertEquals(s.l.longValue(), 1l);
-        Assert.assertEquals(s.level.intValue(), 42);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+        Assert.assertEquals(args.l.longValue(), 1l);
+        Assert.assertEquals(args.level.intValue(), 42);
     }
 
     public void slashParameters() {
-        SlashSeparator a = new SlashSeparator();
+        SlashSeparator args = new SlashSeparator();
         String[] argv = {"/verbose", "/file", "/tmp/a"};
-        new JCommander(a, argv);
-        Assert.assertTrue(a.verbose);
-        Assert.assertEquals(a.file, "/tmp/a");
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+        Assert.assertTrue(args.verbose);
+        Assert.assertEquals(args.file, "/tmp/a");
     }
 
     public void inheritance() {
         ArgsInherited args = new ArgsInherited();
         String[] argv = {"-log", "3", "-child", "2"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
         Assert.assertEquals(args.child.intValue(), 2);
         Assert.assertEquals(args.log.intValue(), 3);
     }
 
     public void negativeNumber() {
-        Args1 a = new Args1();
+        Args1 args = new Args1();
         String[] argv = {"-verbose", "-3"};
-        new JCommander(a, argv);
-        Assert.assertEquals(a.verbose.intValue(), -3);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+        Assert.assertEquals(args.verbose.intValue(), -3);
     }
 
     @Test(expectedExceptions = ParameterException.class)
     public void requiredMainParameters() {
-        ArgsRequired a = new ArgsRequired();
+        ArgsRequired args = new ArgsRequired();
         String[] argv = {};
-        new JCommander(a, argv);
-    }
-
-    public void usageShouldNotChange() {
-        JCommander jc = new JCommander(new Args1(), "-log", "1");
-        StringBuilder sb = new StringBuilder();
-        jc.usage(sb);
-        String expected = sb.toString();
-        jc = new JCommander(new Args1(), "-debug", "-log", "2", "-long", "5");
-        sb = new StringBuilder();
-        jc.usage(sb);
-        String actual = sb.toString();
-        Assert.assertEquals(actual, expected);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
     }
 
     private void verifyCommandOrdering(String[] commandNames, Object[] commands) {
@@ -566,12 +512,6 @@ public class JCommanderTest {
         jc.parse("f1", "f2");
     }
 
-    @Test(description = "This used to run out of memory")
-    public void oom() {
-        JCommander jc = new JCommander(new ArgsOutOfMemory());
-        jc.usage(new StringBuilder());
-    }
-
     @Test
     public void getParametersShouldNotNpe() {
         JCommander jc = new JCommander(new Args1());
@@ -581,7 +521,7 @@ public class JCommanderTest {
     public void validationShouldWork1() {
         ArgsValidate1 a = new ArgsValidate1();
         JCommander jc = new JCommander(a);
-        jc.parse("-age", "2 ");
+        jc.parse("-age", "2");
         Assert.assertEquals(a.age, new Integer(2));
     }
 
@@ -638,7 +578,7 @@ public class JCommanderTest {
         fw.write("\n");
         fw.write("2\n");
         fw.close();
-        new JCommander(new Args1(), "@" + f.getAbsolutePath());
+        JCommander.newBuilder().addObject(new Args1()).build().parse("@" + f.getAbsolutePath());
     }
 
     public void atFileWithInNonDefaultCharset() throws IOException {
@@ -654,10 +594,12 @@ public class JCommanderTest {
         final Args1 args1 = new Args1();
         final JCommander jc = new JCommander(args1);
         try {
-            jc.parse("@" + f.getAbsolutePath());
+            jc.parse("@__this_file_does_not_exists_then_we_should_get_some_exception_telling_us_so");
             throw new IllegalStateException("Expected exception to be thrown");
         } catch (ParameterException expected) {
-            Assert.assertTrue(expected.getMessage().startsWith("Could not read file"));
+          if (!expected.getMessage().startsWith("Could not read file")) {
+            Assert.fail("Invalid exception message", expected);
+          }
         }
         jc.setAtFileCharset(utf32);
         jc.parse("@" + f.getAbsolutePath());
@@ -673,9 +615,9 @@ public class JCommanderTest {
 
     @SuppressWarnings("serial")
     public void handleSets() {
-        ArgsWithSet a = new ArgsWithSet();
-        new JCommander(a, "-s", "3,1,2");
-        Assert.assertEquals(a.set, new TreeSet<Integer>() {{
+        ArgsWithSet args = new ArgsWithSet();
+        JCommander.newBuilder().addObject(args).build().parse("-s", "3,1,2");
+        Assert.assertEquals(args.set, new TreeSet<Integer>() {{
             add(1);
             add(2);
             add(3);
@@ -709,10 +651,48 @@ public class JCommanderTest {
         new JCommander(va).parse("-variable", "a", "b", "c", "d");
     }
 
+    enum Color {
+        RED, BLUE
+    }
+
+    @Test
+    public void enumConverter(){
+
+
+        class ColorEnumConverter extends EnumConverter<Color> {
+            /**
+             * Constructs a new converter.
+             *
+             * @param optionName the option name for error reporting
+             * @param clazz      the enum class
+             */
+            public ColorEnumConverter(String optionName, Class<Color> clazz) {
+                super(optionName, clazz);
+            }
+
+            @Override
+            public Color convert(String value) {
+                return Color.valueOf(value);
+            }
+        }
+
+        class Arg {
+            @Parameter(names = "-colors", converter = ColorEnumConverter.class)
+            List<Color> colors;
+        }
+
+        Arg command = new Arg();
+        JCommander jc = JCommander.newBuilder().addObject(command).build();
+        jc.parse("-colors", "RED");
+        Assert.assertEquals(command.colors.size(), 1);
+    }
+
     public void enumArgs() {
         ArgsEnum args = new ArgsEnum();
         String[] argv = {"-choice", "ONE", "-choices", "ONE", "Two"};
-        JCommander jc = new JCommander(args, argv);
+
+        JCommander jc = JCommander.newBuilder().addObject(args).build();
+        jc.parse(argv);
 
         Assert.assertEquals(args.choice, ArgsEnum.ChoiceType.ONE);
 
@@ -733,14 +713,14 @@ public class JCommanderTest {
     public void enumArgs2() {
         // issue #266
         ArgsEnum args = new ArgsEnum();
-        new JCommander(args, "-choices", "ONE,Two");
+        JCommander.newBuilder().addObject(args).build().parse("-choices", "ONE,Two");
         Assert.assertEquals(Arrays.asList(ChoiceType.ONE, ChoiceType.Two), args.choices);
     }
 
     public void enumArgsCaseInsensitive() {
         ArgsEnum args = new ArgsEnum();
         String[] argv = {"-choice", "one"};
-        JCommander jc = new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
 
         Assert.assertEquals(args.choice, ArgsEnum.ChoiceType.ONE);
     }
@@ -749,7 +729,7 @@ public class JCommanderTest {
     public void enumArgsFail() {
         ArgsEnum args = new ArgsEnum();
         String[] argv = {"-choice", "A"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
     }
 
     @Test
@@ -866,9 +846,10 @@ public class JCommanderTest {
             private String inputFile;
         }
 
-        String args[] = {"-i", ""};
-        Params p = new Params();
-        new JCommander(p, args);
+        String argv[] = {"-i", ""};
+        Params args = new Params();
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+
     }
 
     public void multiVariableArityList() {
@@ -881,19 +862,19 @@ public class JCommanderTest {
         }
 
         {
-            String args[] = {"-paramA", "a1", "a2", "-paramB", "b1", "b2", "b3"};
-            Params p = new Params();
-            new JCommander(p, args).parse();
-            Assert.assertEquals(p.paramA, Arrays.asList("a1", "a2"));
-            Assert.assertEquals(p.paramB, Arrays.asList("b1", "b2", "b3"));
+            String argv[] = {"-paramA", "a1", "a2", "-paramB", "b1", "b2", "b3"};
+            Params args = new Params();
+            JCommander.newBuilder().addObject(args).build().parse(argv);
+            Assert.assertEquals(args.paramA, Arrays.asList("a1", "a2"));
+            Assert.assertEquals(args.paramB, Arrays.asList("b1", "b2", "b3"));
         }
 
         {
-            String args[] = {"-paramA", "a1", "a2", "-paramB", "b1", "-paramA", "a3"};
-            Params p = new Params();
-            new JCommander(p, args).parse();
-            Assert.assertEquals(p.paramA, Arrays.asList("a1", "a2", "a3"));
-            Assert.assertEquals(p.paramB, Arrays.asList("b1"));
+            String argv[] = {"-paramA", "a1", "a2", "-paramB", "b1", "-paramA", "a3"};
+            Params args = new Params();
+            JCommander.newBuilder().addObject(args).build().parse(argv);
+            Assert.assertEquals(args.paramA, Arrays.asList("a1", "a2", "a3"));
+            Assert.assertEquals(args.paramB, Arrays.asList("b1"));
         }
     }
 
@@ -966,7 +947,7 @@ public class JCommanderTest {
         Args1Setter args = new Args1Setter();
         String[] argv = {"-debug", "-log", "2", "-float", "1.2", "-double", "1.3", "-bigdecimal", "1.4",
                 "-date", "2011-10-26", "-groups", "unit", "a", "b", "c"};
-        new JCommander(args, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
 
         Assert.assertTrue(args.debug);
         Assert.assertEquals(args.verbose.intValue(), 2);
@@ -986,11 +967,11 @@ public class JCommanderTest {
             @Parameter(names = "file", required = true)
             public String file;
         }
-        Arg arg = new Arg();
+        Arg args = new Arg();
         String[] argv = {"--help"};
-        new JCommander(arg, argv);
+        JCommander.newBuilder().addObject(args).build().parse(argv);
 
-        Assert.assertTrue(arg.help);
+        Assert.assertTrue(args.help);
     }
 
     public void helpTest() {
@@ -1001,23 +982,6 @@ public class JCommanderTest {
         Arg arg = new Arg();
         JCommander jc = new JCommander(arg);
         jc.parse("-help");
-    }
-
-    @Test
-    public void doNotDisplayHelpDefaultValue() {
-        class Arg {
-            @Parameter(names = "--help", help = true)
-            public boolean help = false;
-        }
-        Arg arg = new Arg();
-        String[] argv = {"--help"};
-        JCommander jc = new JCommander(arg, argv);
-
-        StringBuilder sb = new StringBuilder();
-
-        jc.usage(sb);
-
-        Assert.assertFalse(sb.toString().contains("Default"));
     }
 
     @Test(enabled = false, description = "Should only be enable once multiple parameters are allowed")
@@ -1081,17 +1045,6 @@ public class JCommanderTest {
         jc.parse("-p=\"");
     }
 
-    public void emptyStringAsDefault() {
-        class Arg {
-            @Parameter(names = "-x")
-            String s = "";
-        }
-        Arg a = new Arg();
-        StringBuilder sb = new StringBuilder();
-        new JCommander(a).usage(sb);
-        Assert.assertTrue(sb.toString().contains("Default: <empty string>"));
-    }
-
     @Test
     public void emptyStringShouldBeConsideredAsParameter() {
         class Arg {
@@ -1127,13 +1080,13 @@ public class JCommanderTest {
             @Parameter(names = "-rule", description = "rule")
             private List<String> rules = new ArrayList<>();
         }
-        Arg a = new Arg();
-        new JCommander(a, "-rule", "some test");
-        Assert.assertEquals(a.rules, Arrays.asList("some test"));
+        Arg args = new Arg();
+        JCommander.newBuilder().addObject(args).build().parse("-rule", "some test");
+        Assert.assertEquals(args.rules, Arrays.asList("some test"));
     }
 
     static class V2 implements IParameterValidator2 {
-        final static List<String> names = Lists.newArrayList();
+        static final List<String> names = Lists.newArrayList();
         static boolean validateCalled = false;
 
         @Override
@@ -1153,93 +1106,15 @@ public class JCommanderTest {
             @Parameter(names = {"-h", "--host"}, validateWith = V2.class)
             String host;
         }
-        Arg a = new Arg();
+        Arg args = new Arg();
         V2.names.clear();
         V2.validateCalled = false;
-        JCommander jc = new JCommander(a, "--host", "h");
+        JCommander jc = JCommander.newBuilder().addObject(args).build();
+        jc.parse("--host", "h");
+
         jc.setAcceptUnknownOptions(true);
         Assert.assertEquals(V2.names, Arrays.asList("-h", "--host"));
         Assert.assertTrue(V2.validateCalled);
-    }
-
-    public void usageCommandsUnderUsage() {
-        class Arg {
-        }
-        @Parameters(commandDescription = "command a")
-        class ArgCommandA {
-            @Parameter(description = "command a parameters")
-            List<String> parameters;
-        }
-        @Parameters(commandDescription = "command b")
-        class ArgCommandB {
-            @Parameter(description = "command b parameters")
-            List<String> parameters;
-        }
-
-        Arg a = new Arg();
-
-        JCommander c = new JCommander(a);
-        c.addCommand("a", new ArgCommandA());
-        c.addCommand("b", new ArgCommandB());
-
-        StringBuilder sb = new StringBuilder();
-        c.usage(sb);
-        Assert.assertTrue(sb.toString().contains("[command options]\n  Commands:"));
-    }
-
-    public void usageWithEmpytLine() {
-        class Arg {
-        }
-        @Parameters(commandDescription = "command a")
-        class ArgCommandA {
-            @Parameter(description = "command a parameters")
-            List<String> parameters;
-        }
-        @Parameters(commandDescription = "command b")
-        class ArgCommandB {
-            @Parameter(description = "command b parameters")
-            List<String> parameters;
-        }
-
-        Arg a = new Arg();
-
-        JCommander c = new JCommander(a);
-        c.addCommand("a", new ArgCommandA());
-        c.addCommand("b", new ArgCommandB());
-
-        StringBuilder sb = new StringBuilder();
-        c.usage(sb);
-        Assert.assertTrue(sb.toString().contains("command a parameters\n\n    b"));
-    }
-
-    public void usageWithSubCommands() {
-        class Arg {
-        }
-        @Parameters(commandDescription = "command a")
-        class ArgCommandA {
-            @Parameter(description = "command a parameters")
-            List<String> parameters;
-        }
-        @Parameters(commandDescription = "command b")
-        class ArgCommandB {
-            @Parameter(description = "command b parameters")
-            List<String> parameters;
-        }
-
-        Arg a = new Arg();
-
-        JCommander c = new JCommander(a);
-        c.setColumnSize(100);
-        c.addCommand("a", new ArgCommandA());
-
-        // b is a sub-command of a
-        JCommander aCommand = c.getCommands().get("a");
-        aCommand.addCommand("b", new ArgCommandB());
-
-        StringBuilder sb = new StringBuilder();
-        c.usage(sb);
-        Assert.assertTrue(sb.toString().contains("command a parameters\n        Commands:"));
-        Assert.assertTrue(sb.toString().contains("command b\n            Usage:"));
     }
 
     public void partialValidation() {
@@ -1264,9 +1139,9 @@ public class JCommanderTest {
             @Parameter(description = "[endpoint]")
             public List<String> endpoint = Lists.newArrayList("prod");
         }
-        Args a = new Args();
-        new JCommander(a, "dev");
-        Assert.assertEquals(a.endpoint, Lists.newArrayList("dev"));
+        Args args = new Args();
+        JCommander.newBuilder().addObject(args).build().parse("dev");
+        Assert.assertEquals(args.endpoint, Lists.newArrayList("dev"));
     }
 
     @Test
@@ -1276,9 +1151,9 @@ public class JCommanderTest {
             public List<String> mainParameters = new ArrayList<>();
         }
 
-        Parameters a = new Parameters();
-        new JCommander(a, "--");
-        Assert.assertTrue(a.mainParameters.isEmpty());
+        Parameters args = new Parameters();
+        JCommander.newBuilder().addObject(args).build().parse("--");
+        Assert.assertTrue(args.mainParameters.isEmpty());
     }
 
     @Test
@@ -1288,10 +1163,10 @@ public class JCommanderTest {
             public List<String> mainParameters = new ArrayList<>();
         }
 
-        Parameters a = new Parameters();
-        new JCommander(a, "--", "--");
-        Assert.assertEquals(a.mainParameters.size(), 1);
-        Assert.assertEquals(a.mainParameters.get(0), "--");
+        Parameters args = new Parameters();
+        JCommander.newBuilder().addObject(args).build().parse("--", "--");
+        Assert.assertEquals(args.mainParameters.size(), 1);
+        Assert.assertEquals(args.mainParameters.get(0), "--");
     }
 
     public void dashDashParameter() {
@@ -1302,12 +1177,12 @@ public class JCommanderTest {
             public List<String> mainParameters;
         }
 
-        Parameters a = new Parameters();
-        new JCommander(a, "-name", "theName", "--", "param1", "param2");
-        Assert.assertEquals(a.name, "theName");
-        Assert.assertEquals(a.mainParameters.size(), 2);
-        Assert.assertEquals(a.mainParameters.get(0), "param1");
-        Assert.assertEquals(a.mainParameters.get(1), "param2");
+        Parameters args = new Parameters();
+        JCommander.newBuilder().addObject(args).build().parse("-name", "theName", "--", "param1", "param2");
+        Assert.assertEquals(args.name, "theName");
+        Assert.assertEquals(args.mainParameters.size(), 2);
+        Assert.assertEquals(args.mainParameters.get(0), "param1");
+        Assert.assertEquals(args.mainParameters.get(1), "param2");
     }
 
     public void dashDashParameter2() {
@@ -1318,15 +1193,15 @@ public class JCommanderTest {
             public List<String> mainParameters;
         }
 
-        Parameters a = new Parameters();
-        new JCommander(a, "param1", "param2", "--", "param3", "-name", "theName");
-        Assert.assertNull(a.name);
-        Assert.assertEquals(a.mainParameters.size(), 5);
-        Assert.assertEquals(a.mainParameters.get(0), "param1");
-        Assert.assertEquals(a.mainParameters.get(1), "param2");
-        Assert.assertEquals(a.mainParameters.get(2), "param3");
-        Assert.assertEquals(a.mainParameters.get(3), "-name");
-        Assert.assertEquals(a.mainParameters.get(4), "theName");
+        Parameters args = new Parameters();
+        JCommander.newBuilder().addObject(args).build().parse("param1", "param2", "--", "param3", "-name", "theName");
+        Assert.assertNull(args.name);
+        Assert.assertEquals(args.mainParameters.size(), 5);
+        Assert.assertEquals(args.mainParameters.get(0), "param1");
+        Assert.assertEquals(args.mainParameters.get(1), "param2");
+        Assert.assertEquals(args.mainParameters.get(2), "param3");
+        Assert.assertEquals(args.mainParameters.get(3), "-name");
+        Assert.assertEquals(args.mainParameters.get(4), "theName");
     }
 
     public void access() {
@@ -1342,9 +1217,9 @@ public class JCommanderTest {
             private String otherName;
         }
 
-        Parameters a = new Parameters();
-        new JCommander(a, "-bar", "1");
-        Assert.assertEquals(a.bar, 1);
+        Parameters args = new Parameters();
+        JCommander.newBuilder().addObject(args).build().parse("-bar", "1");
+        Assert.assertEquals(args.bar, 1);
     }
 
     public void noDash() {
@@ -1360,15 +1235,15 @@ public class JCommanderTest {
             private String otherName;
         }
 
-        Parameters a = new Parameters();
-        new JCommander(a, "bar", "1");
-        Assert.assertEquals(a.bar, 1);
+        Parameters args = new Parameters();
+        JCommander.newBuilder().addObject(args).build().parse("bar", "1");
+        Assert.assertEquals(args.bar, 1);
     }
 
     public void commitTest() {
-        CommandCommit cc = new CommandCommit();
-        new JCommander(cc, "--author=cedric");
-        Assert.assertEquals(cc.author, "cedric");
+        CommandCommit args = new CommandCommit();
+        JCommander.newBuilder().addObject(args).build().parse("--author=cedric");
+        Assert.assertEquals(args.author, "cedric");
     }
 
     static class CommandTemplate {
@@ -1414,9 +1289,11 @@ public class JCommanderTest {
             private List<Integer> values;
         }
 
-        String[] commands = "-v 1 5 2".split("\\s+");
-        Parameters arg = new Parameters();
-        new JCommander(arg, commands);
+        String[] argv = "-v 1 5 2".split("\\s+");
+        Parameters args = new Parameters();
+        JCommander.newBuilder().addObject(args).build().parse(argv);
+        JCommander jc = JCommander.newBuilder().addObject(args).build();
+        jc.parse(argv);
     }
 
     static class MvParameters {
@@ -1444,44 +1321,6 @@ public class JCommanderTest {
         Assert.assertEquals(args.mvParameters.to, "to");
     }
 
-    public void programName() {
-        JCommander jcommander = new JCommander();
-        String programName = "main";
-        jcommander.setProgramName(programName);
-        StringBuilder sb = new StringBuilder();
-        jcommander.usage(sb);
-
-        Assert.assertTrue(sb.toString().contains(programName));
-        Assert.assertEquals(jcommander.getProgramName(), programName);
-    }
-
-    public void dontShowOptionUsageIfThereAreNoOptions() {
-        class CommandTemplate {
-            @Parameter
-            List<String> parameters = new ArrayList<>();
-        }
-
-        CommandTemplate template = new CommandTemplate();
-        JCommander jcommander = new JCommander(template);
-        jcommander.setProgramName("main");
-        StringBuilder sb = new StringBuilder();
-        jcommander.usage(sb);
-        Assert.assertEquals(sb.toString().indexOf("options"), -1);
-    }
-
-    @Test
-    public void annotationsAndDynamicParameters() {
-        class DSimple {
-            @DynamicParameter(names = "-D", description = "Dynamic parameters go here")
-            public Map<String, String> params = Maps.newHashMap();
-
-            @DynamicParameter(names = "-A", assignment = "@")
-            public Map<String, String> params2 = Maps.newHashMap();
-        }
-
-        new JCommander(new DSimple()).usage(new StringBuilder());
-    }
-
     @Test
     public void twoCommandsSameOption() {
         class GenerateOption {
@@ -1505,29 +1344,93 @@ public class JCommanderTest {
     }
 
     @Test
-    public void invertedBoolean() {
+    public void mainParameterWithNonListField() {
         class Args {
-            @Parameter(names = {"--f"})
-            private boolean f = true;
+            @Parameter
+            private String main;
+        }
+
+        Args args = new Args();
+        JCommander.newBuilder()
+                .addObject(args)
+                .args(new String[]{"a"})
+                .build();
+        Assert.assertEquals(args.main, "a");
+    }
+
+    @Test(expectedExceptions = ParameterException.class)
+    public void mainParameterWithNonListFieldWithException() {
+        class Args {
+            @Parameter
+            private String main;
+        }
+
+        Args args = new Args();
+        JCommander.newBuilder()
+                .addObject(args)
+                .args(new String[]{"a", "b"})
+                .build();
+    }
+
+    @Test
+    public void mainParameterWithCorrectArity() {
+        class Args {
+            @Parameter(arity = 2)
+            private List<String> main;
+        }
+
+        Args args = new Args();
+        JCommander.newBuilder()
+                .addObject(args)
+                .args(new String[]{"a", "b"})
+                .build();
+        Assert.assertEquals(args.main.size(), 2);
+        Assert.assertEquals(args.main.get(0), "a");
+        Assert.assertEquals(args.main.get(1), "b");
+    }
+
+    @Test(expectedExceptions = ParameterException.class)
+    public void mainParameterWithWrongArity() {
+        class Args {
+            @Parameter(arity = 2)
+            private List<String> main;
+        }
+
+        Args args = new Args();
+        JCommander.newBuilder()
+                .addObject(args)
+                .args(new String[]{"a"})
+                .build();
+    }
+
+    @Test
+    public void mainWithConverter() {
+
+        String path = "..";
+        File file = new File(path);
+        ArgsMainParameter3 args = new ArgsMainParameter3();
+        JCommander jc = new JCommander(args);
+
+        jc.parse(path);
+        Assert.assertEquals(file.getAbsolutePath(), args.getPath().getAbsolutePath());
+    }
+
+    @Test
+    public void trimTest() {
+        class Args {
+            @Parameter(names = {"-L", "--replace-new-line"}, description = "Char used for replacing new line in value")
+            protected String escapeNl;
         }
         Args args = new Args();
         JCommander.newBuilder()
                 .addObject(args)
-                .args(new String[]{"--f"})
-                .build();
-        Assert.assertEquals(args.f, false);
+                .build()
+                .parse("-L", " ");
+        Assert.assertEquals(args.escapeNl, " ");
     }
 
     @Test(enabled = false)
     public static void main(String[] args) {
-
-        CommandTemplate template = new CommandTemplate();
-        JCommander jcommander = new JCommander(template);
-        jcommander.setProgramName("prog");
-        jcommander.parse("help");
-
-        if (template.help) {
-            jcommander.usage();
-        }
+        new JCommanderTest().trimTest();
     }
 }

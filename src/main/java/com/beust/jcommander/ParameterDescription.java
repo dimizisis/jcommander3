@@ -104,6 +104,17 @@ public class ParameterDescription {
     }
   }
 
+  /**
+   * Initializes the state of this parameter description. This will set an appropriate bundle if it is <tt>null</tt>.
+   * If its the description in is empty and it refers to an enum type, then the description will be set to its possible
+   * values. It will also attempt to validate the default value of the parameter.
+   *
+   * @param object the object defining the command-line arguments
+   * @param parameterized the wrapper for the field or method annotated with \@Parameter this represents
+   * @param bundle the locale
+   * @param jCommander the parent JCommander instance
+   * @see #initDescription(String, String, String[])
+   */
   @SuppressWarnings("unchecked")
   private void init(Object object, Parameterized parameterized, ResourceBundle bundle,
       JCommander jCommander) {
@@ -330,7 +341,7 @@ public class ParameterDescription {
     final Class<? extends IParameterValidator> validators[] = wrappedParameter.validateWith();
     if (validators != null && validators.length > 0) {
         for(final Class<? extends IParameterValidator> validator: validators) {
-          validateParameter(this, validator, name, value);
+          validateParameter(validator, name, value);
         }
     }
   }
@@ -344,7 +355,7 @@ public class ParameterDescription {
     }
   }
 
-  public static void validateValueParameter(Class<? extends IValueValidator> validator,
+  public void validateValueParameter(Class<? extends IValueValidator> validator,
       String name, Object value) {
     try {
       if (validator != NoValueValidator.class) {
@@ -356,8 +367,7 @@ public class ParameterDescription {
     }
   }
 
-  public static void validateParameter(ParameterDescription pd,
-      Class<? extends IParameterValidator> validator,
+  public void validateParameter(Class<? extends IParameterValidator> validator,
       String name, String value) {
     try {
     	
@@ -367,7 +377,7 @@ public class ParameterDescription {
       validator.newInstance().validate(name, value);
       if (IParameterValidator2.class.isAssignableFrom(validator)) {
         IParameterValidator2 instance = (IParameterValidator2) validator.newInstance();
-        instance.validate(name, value, pd);
+        instance.validate(name, value, this);
       }
     } catch (InstantiationException | IllegalAccessException e) {
       throw new ParameterException("Can't instantiate validator:" + e);
@@ -404,9 +414,9 @@ public class ParameterDescription {
     return (!isDefault && !assigned);
   }
 
-  private static void p(String string) {
+  private void p(String string) {
     if (System.getProperty(JCommander.DEBUG_PROPERTY) != null) {
-      JCommander.getConsole().println("[ParameterDescription] " + string);
+      jCommander.getConsole().println("[ParameterDescription] " + string);
     }
   }
 

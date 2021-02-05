@@ -3,6 +3,7 @@
 ### Current
 2017-03-05
 
+* Fixed: Fix NullPointerException for Boolean null values, #367
 * Fixed: '--' handling, #296
 * Added: Add `getProgramName` to `JCommander`, #247
 * Added: Documentation for `listConverter` and `splitter`, #253, (@jeremysolarz)
@@ -11,6 +12,16 @@
 * Fixed: Allow empty string (e.g. `java -jar jcommander-program.jar param1 ""`) as part of main parameter, #306 (@jeremysolarz)
 * Fixed: Default value for `@Parameter(help=true)` parameter is not displayed in output of `JCommander.usage()`, #305 (@jeremysolarz) 
 * Fixed: When providing two names in `@Parameter` always first name is given to `IValueValidator`, #309 (@jeremysolarz) 
+* Fixed: Do not add a DefaultConverterFactory for every subcommand, #359 (@simon04)
+* Fixed: Fix Sonar rules squid:ModifiersOrderCheck and squid:S2444, #254 (@kirill-vlasov)
+* Added: Add testcase for `EnumConverter`, #360 (@jeremysolarz)
+* Fixed: Proper `ParameterException` when `Path` converter fails, #414 (@selliera)
+* Fixed: `misc.xml` syntax, #407 (@PureCS)
+* Added: Flexible usage formatting, #408 (@PureCS)
+* Fixed: Java 7 compatibility, #409 (@PureCS)
+* Fixed: Locale-related issues in usage formatter tests, #410 (@PureCS)
+* Added: Documentation for `IUsageFormatter` and related classes, #411 (@PureCS)
+* Added: `order` support for `@DynamicParameter`, #418 (@selliera)
 
 ### 1.58
 2016-09-29
